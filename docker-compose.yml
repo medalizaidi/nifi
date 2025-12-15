@@ -26,4 +26,7 @@ services:
     image: apache/nifi-registry:1.25.0
     ports:
       - "18080:18080"
+    volumes:
+      - ./registry/providers.xml:/opt/nifi-registry/conf/providers.xml
+      - ./registry/data:/opt/nifi-registry/data
   

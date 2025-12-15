@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<flowController encodingVersion="1.0">
+  <rootGroup>
+    <id>order-ingestion-test</id>
+    <name>order-ingestion-test</name>
+
+    <processors>
+      <processor>
+        <id>generate-flowfile</id>
+        <name>GenerateFlowFile</name>
+        <type>org.apache.nifi.processors.standard.GenerateFlowFile</type>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>1.25.0</version>
+        </bundle>
+        <config>
+          <properties>
+            <property>
+              <name>Custom Text</name>
+              <value>{"orderId":123,"status":"NEW"}</value>
+            </property>
+          </properties>
+        </config>
+      </processor>
+
+      <processor>
+        <id>update-attribute</id>
+        <name>UpdateAttribute</name>
+        <type>org.apache.nifi.processors.attributes.UpdateAttribute</type>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-update-attribute-nar</artifact>
+          <version>1.25.0</version>
+        </bundle>
+        <config>
+          <properties>
+            <property>
+              <name>environment</name>
+              <value>${ENVIRONMENT}</value>
+            </property>
+            <property>
+              <name>flow_version</name>
+              <value>${nifi.registry.version}</value>
+            </property>
+          </properties>
+        </config>
+      </processor>
+
+      <processor>
+        <id>log-attribute</id>
+        <name>LogAttribute</name>
+        <type>org.apache.nifi.processors.standard.LogAttribute</type>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>1.25.0</version>
+        </bundle>
+      </processor>
+    </processors>
+  </rootGroup>
+</flowController>
