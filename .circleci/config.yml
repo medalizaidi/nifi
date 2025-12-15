@@ -1,32 +1,25 @@
 version: 2.1
-
 jobs:
-  promote-nifi-flow:
+  deploy_nifi:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.11
     steps:
       - checkout
-      - setup_remote_docker
-
       - run:
-          name: Start Environments
-          command: docker-compose up -d
-
+          name: Install dependencies
+          command: pip install nipyapi
       - run:
-          name: Wait for NiFi
-          command: |
-            bash scripts/wait_for_nifi.sh http://nifi-stg:8080
-            bash scripts/wait_for_nifi.sh http://nifi-prod:8080
-
+          name: Deploy to Staging
+          command: python deploy_flow.py staging
       - run:
-          name: Promote Flow
-          command: |
-            bash scripts/promote_flow.sh \
-              $FLOW_ID \
-              $FLOW_VERSION
+          name: Smoke test Staging
+          command: curl http://nifi-stg:8080/nifi-api/controller/status
+      - run:
+          name: Deploy to Production
+          command: python deploy_flow.py prod
 
 workflows:
   version: 2
-  promote:
+  deploy:
     jobs:
-      - promote-nifi-flow
+      - deploy_nifi
