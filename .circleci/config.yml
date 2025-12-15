@@ -1,0 +1,32 @@
+version: 2.1
+
+jobs:
+  promote-nifi-flow:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Start Environments
+          command: docker-compose up -d
+
+      - run:
+          name: Wait for NiFi
+          command: |
+            bash scripts/wait_for_nifi.sh http://nifi-stg:8080
+            bash scripts/wait_for_nifi.sh http://nifi-prod:8080
+
+      - run:
+          name: Promote Flow
+          command: |
+            bash scripts/promote_flow.sh \
+              $FLOW_ID \
+              $FLOW_VERSION
+
+workflows:
+  version: 2
+  promote:
+    jobs:
+      - promote-nifi-flow
