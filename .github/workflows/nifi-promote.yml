@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Start NiFi STG
-        run: docker-compose up -d nifi-stg
+        run: docker-compose up 
 
       - name: Wait for NiFi STG
         run: |
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Start NiFi PROD
-        run: docker-compose up -d nifi-prod
+        run: docker-compose up 
 
       - name: Wait for NiFi PROD
         run: |
