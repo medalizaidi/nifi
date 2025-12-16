@@ -97,7 +97,7 @@
           "identifier" : "7c8489c2-4fc7-34fd-b27e-c7a40f10f1c4",
           "instanceIdentifier" : "28170c82-019b-1000-034c-53552cc0d26d",
           "maxBackoffPeriod" : "10 mins",
-          "name" : "AttributeRollingWindow",
+          "name" : "AttributeRollingWindowsccs",
           "penaltyDuration" : "30 sec",
           "position" : {
             "x" : 688.0,
