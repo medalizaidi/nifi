@@ -9,8 +9,9 @@ nifi_hosts = {
     "prod": os.getenv("NIFI_API")
 }
 
-registry_url = os.getenv("REGISTRY_API")bucket_name = "test"
-flow_name = "test"
+registry_url = os.getenv("REGISTRY_API")
+bucket_name = "test"
+flow_name = "flow"
 
 # --- CONNECT ---
 print(f"Connecting to NiFi at {nifi_hosts[ENV]}")
