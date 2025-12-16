@@ -5,7 +5,7 @@
         <property name="Flow Storage Directory">/opt/nifi-registry/nifi-registry-current/flow_storage</property>
         <property name="Remote To Push">origin</property>
         <property name="Remote Access User">medalizaidi</property>
-        <property name="Remote Access Password">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</property>
+        <property name="Remote Access Password">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</property>
     </flowPersistenceProvider>
     <extensionBundlePersistenceProvider>
         <class>org.apache.nifi.registry.provider.extension.FileSystemBundlePersistenceProvider</class>
