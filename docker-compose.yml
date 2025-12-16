@@ -7,26 +7,92 @@ services:
       - "8081:8080"
     environment:
       - NIFI_WEB_HTTP_PORT=8080
-
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=adminadminadmin
+      - NIFI_SENSITIVE_PROPS_KEY=adminadminadmin
+    volumes:
+      - nifi-dev-database:/opt/nifi/nifi-current/database_repository
+      - nifi-dev-flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi-dev-content:/opt/nifi/nifi-current/content_repository
+      - nifi-dev-provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi-dev-state:/opt/nifi/nifi-current/state
+      - nifi-dev-logs:/opt/nifi/nifi-current/logs
+    networks:
+      - nifi-network
+    depends_on:
+      - registry
   nifi-stg:
     image: apache/nifi:1.25.0
     ports:
       - "8082:8080"
     environment:
       - NIFI_WEB_HTTP_PORT=8080
-
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=adminadminadmin
+      - NIFI_SENSITIVE_PROPS_KEY=adminadminadmin
+    volumes:
+      - nifi-staging-database:/opt/nifi/nifi-current/database_repository
+      - nifi-staging-flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi-staging-content:/opt/nifi/nifi-current/content_repository
+      - nifi-staging-provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi-staging-state:/opt/nifi/nifi-current/state
+      - nifi-staging-logs:/opt/nifi/nifi-current/logs
+    networks:
+      - nifi-network
+    depends_on:
+      - registry
   nifi-prod:
     image: apache/nifi:1.25.0
     ports:
       - "8083:8080"
     environment:
       - NIFI_WEB_HTTP_PORT=8080
-
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=adminadminadmin
+      - NIFI_SENSITIVE_PROPS_KEY=adminadminadmin
+    volumes:
+      - nifi-staging-database:/opt/nifi/nifi-current/database_repository
+      - nifi-staging-flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi-staging-content:/opt/nifi/nifi-current/content_repository
+      - nifi-staging-provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi-staging-state:/opt/nifi/nifi-current/state
+      - nifi-staging-logs:/opt/nifi/nifi-current/logs
+    networks:
+      - nifi-network
+    depends_on:
+      - registry
   registry:
     image: apache/nifi-registry:1.25.0
     ports:
       - "18080:18080"
+    environment:
+      - NIFI_REGISTRY_WEB_HTTP_PORT=18080
+      - NIFI_REGISTRY_FLOW_PROVIDER=git
+      - NIFI_REGISTRY_GIT_REMOTE=https://github.com/medalizaidi/nifi.git
+      - NIFI_REGISTRY_GIT_USER=nifi-automation
+      - NIFI_REGISTRY_GIT_PASSWORD=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
     volumes:
-      - ./registry/providers.xml:/opt/nifi-registry/conf/providers.xml
-      - ./registry/data:/opt/nifi-registry/data
-  
+      - ./registry/providers.xml:/opt/nifi-registry/nifi-registry-current/conf/providers.xml
+      - nifi-registry-database:/opt/nifi-registry/nifi-registry-current/database
+      - nifi-registry-flow-storage:/opt/nifi-registry/nifi-registry-current/flow_storage
+    networks:
+      - nifi-network
+volumes:
+  nifi-registry-database:
+  nifi-registry-flow-storage:
+  nifi-dev-database:
+  nifi-dev-flowfile:
+  nifi-dev-content:
+  nifi-dev-provenance:
+  nifi-dev-state:
+  nifi-dev-logs:
+  nifi-staging-database:
+  nifi-staging-flowfile:
+  nifi-staging-content:
+  nifi-staging-provenance:
+  nifi-staging-state:
+  nifi-staging-logs:
+ 
+networks:
+  nifi-network:
+    driver: bridge

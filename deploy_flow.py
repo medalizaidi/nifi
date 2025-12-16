@@ -1,15 +1,15 @@
 import nipyapi
 import sys
 import time
-
+import os
 # --- CONFIG ---
 ENV = sys.argv[1]  # 'staging' or 'prod'
 nifi_hosts = {
-    "staging": "http://localhost:8082/nifi-api",
-    "prod": "http://localhost:8083/nifi-api"
+    "staging": os.getenv("NIFI_API"),
+    "prod": os.getenv("NIFI_API")
 }
-registry_url = "http://localhost:18080/nifi-registry-api"
-bucket_name = "test"
+
+registry_url = os.getenv("REGISTRY_API")bucket_name = "test"
 flow_name = "test"
 
 # --- CONNECT ---

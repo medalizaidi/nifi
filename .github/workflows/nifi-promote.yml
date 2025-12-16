@@ -1,56 +1,62 @@
-name: NiFi Flow CI/CD
+name: NiFi CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - "flows/**"
+    branches:
+      - main
+      - "release/*"
 
 jobs:
-
-  deploy-stg:
-    name: Deploy to STG
+  deploy-staging:
+    name: Deploy to NiFi Staging
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: staging
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout flows
+        uses: actions/checkout@v4
 
-      - name: Start NiFi STG
-        run: docker-compose up -d nifi-stg
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Wait for NiFi STG
+      - name: Install dependencies
         run: |
-          until curl -s http://localhost:8082/nifi-api/system-diagnostics; do
-            sleep 5
-          done
+          pip install nipyapi requests urllib3
 
-      - name: Deploy Flow to STG
+      - name: Deploy flow to Staging
+        env:
+          NIFI_API: ${{ secrets.NIFI_STG_URL }}
+          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
         run: |
-          curl -X POST \
-            http://localhost:8082/nifi-api/process-groups/root/process-groups/import \
-            -F "file=@flows/order-ingestion-test.xml"
+          python deploy_flow.py staging
 
-  deploy-prod:
-    name: Deploy to PROD
+  deploy-production:
+    name: Deploy to NiFi Production
+    if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
-    needs: deploy-stg
-    environment: production
+    needs: deploy-staging
+    environment:
+      name: production
+      url: http://localhost:8083/nifi
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout flows
+        uses: actions/checkout@v4
 
-      - name: Start NiFi PROD
-        run: docker-compose up -d nifi-prod
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Wait for NiFi PROD
+      - name: Install dependencies
         run: |
-          until curl -s http://localhost:8083/nifi-api/system-diagnostics; do
-            sleep 5
-          done
+          pip install nipyapi requests urllib3
 
-      - name: Deploy Flow to PROD
+      - name: Deploy flow to Production
+        env:
+          NIFI_API: ${{ secrets.NIFI_PROD_URL }}
+          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
         run: |
-          curl -X POST \
-            http://localhost:8083/nifi-api/process-groups/root/process-groups/import \
-            -F "file=@flows/order-ingestion-test.xml"
+          python deploy_flow.py prod
