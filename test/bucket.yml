@@ -1,5 +1,5 @@
 flows:
-  de6ac3af-70ee-4372-adb2-63126266fab8: {ver: 1, file: demo.snapshot, comments: '',
-    author: anonymous, created: 1765903723607, flowName: demo, flowDesc: ''}
+  de6ac3af-70ee-4372-adb2-63126266fab8: {ver: 2, file: demo.snapshot, comments: test,
+    author: anonymous, created: 1765903808653, flowName: demo, flowDesc: ''}
 layoutVer: 1
 bucketId: 0aa3599e-43bb-453e-85e5-1866a53f98e5
