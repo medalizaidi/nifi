@@ -5,7 +5,7 @@
     <property name="Flow Storage Directory">/opt/nifi-registry/data/flows</property>
     <property name="Remote To Push">origin</property>
     <property name="Remote Access User">git</property>
-    <property name="Remote Access Password">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</property>
+    <property name="Remote Access Password"></property>
     <property name="Remote Repository URL">https://github.com/medalizaidi/nifi.git</property>
     <property name="Branch">main</property>
   </flowPersistenceProvider>
