@@ -3,5 +3,7 @@ flows:
       from dev nifi, author: anonymous, created: 1765910539584, flowName: flow, flowDesc: ''}
   de6ac3af-70ee-4372-adb2-63126266fab8: {ver: 2, file: demo.snapshot, comments: test,
     author: anonymous, created: 1765903808653, flowName: demo, flowDesc: ''}
+  19a5b826-d497-49ce-a85b-cd604bd7fc01: {ver: 1, file: alpha.snapshot, comments: '',
+    author: anonymous, created: 1766010471779, flowName: alpha, flowDesc: ''}
 layoutVer: 1
 bucketId: 0aa3599e-43bb-453e-85e5-1866a53f98e5
