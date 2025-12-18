@@ -89,7 +89,6 @@ jobs:
 
     environment:
       name: production
-      url: ${{ secrets.NIFI_PROD_URL }}
 
     steps:
       - name: Checkout infrastructure
