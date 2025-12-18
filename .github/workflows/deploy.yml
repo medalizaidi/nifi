@@ -66,21 +66,6 @@ jobs:
         run: |
           python infra/deploy_flow.py staging
 
-      - name: Comment on flow commit
-        if: github.event_name == 'repository_dispatch'
-        uses: peter-evans/commit-comment@v3
-        with:
-          token: ${{ secrets.NIFI_REPO_PAT }}
-          repository: medalizaidi/nifi-flows
-          sha: ${{ github.event.client_payload.flow_commit }}
-          body: |
-            🚀 **Deployment Triggered**
-
-            This flow update triggered automatic deployment to **Staging**.
-
-            📦 Workflow run:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
   deploy-production:
     name: Deploy to NiFi Production
     if: startsWith(github.ref, 'refs/heads/release/')
