@@ -107,7 +107,7 @@ jobs:
             export NIFI_API="http://localhost:8082/nifi-api"
             export REGISTRY_API="http://localhost:18080/nifi-registry-api"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
-            export FLOW_NAME="${FLOW_NAME:-test}"
+            export FLOW_NAME="${FLOW_NAME:-demo}"
             
             echo "=========================================="
             echo "🚀 Deploying to Staging"
