@@ -3,33 +3,35 @@ name: NiFi CI/CD Pipeline
 on:
   repository_dispatch:
     types: [flow-updated]
-  
+
   workflow_dispatch:
-  
+
   push:
     branches:
       - main
+      - release/*
+
 jobs:
   deploy-staging:
     name: Deploy to NiFi Staging
-    # Deploy on main branch push OR when flows are updated
     if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
     runs-on: self-hosted
-    
+
     steps:
       - name: Checkout infrastructure
         uses: actions/checkout@v4
         with:
           repository: medalizaidi/nifi
           ref: main
-      
+          path: infra
+
       - name: Checkout flows
         uses: actions/checkout@v4
         with:
           repository: medalizaidi/nifi-flows
           ref: main
           path: flows
-      
+
       - name: Display flow update info
         if: github.event_name == 'repository_dispatch'
         run: |
@@ -37,28 +39,22 @@ jobs:
           echo "Flow Commit: ${{ github.event.client_payload.flow_commit }}"
           echo "Flow Message: ${{ github.event.client_payload.flow_message }}"
           echo "Flow Author: ${{ github.event.client_payload.flow_author }}"
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      
+
       - name: Install dependencies
         run: |
           pip install nipyapi requests urllib3
-      
+
       - name: Validate secrets
         run: |
-          if [ -z "${{ secrets.NIFI_STG_URL }}" ]; then
-            echo "❌ ERROR: NIFI_STG_URL secret is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.NIFI_REGISTRY_URL }}" ]; then
-            echo "❌ ERROR: NIFI_REGISTRY_URL secret is not set"
-            exit 1
-          fi
+          [ -z "${{ secrets.NIFI_STG_URL }}" ] && echo "❌ NIFI_STG_URL not set" && exit 1
+          [ -z "${{ secrets.NIFI_REGISTRY_URL }}" ] && echo "❌ NIFI_REGISTRY_URL not set" && exit 1
           echo "✅ All secrets are configured"
-      
+
       - name: Deploy flow to Staging
         env:
           NIFI_API: ${{ secrets.NIFI_STG_URL }}
@@ -68,9 +64,9 @@ jobs:
           BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
           FLOW_NAME: ${{ secrets.FLOW_NAME }}
         run: |
-          python deploy_flow.py staging
-      
-      - name: Comment on flow commit (if triggered by flow update)
+          python infra/deploy_flow.py staging
+
+      - name: Comment on flow commit
         if: github.event_name == 'repository_dispatch'
         uses: peter-evans/commit-comment@v3
         with:
@@ -79,41 +75,46 @@ jobs:
           sha: ${{ github.event.client_payload.flow_commit }}
           body: |
             🚀 **Deployment Triggered**
-            
-            This flow update triggered automatic deployment to staging.
-            
-            ✅ Deployed to: NiFi Staging
-            📦 Workflow: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            This flow update triggered automatic deployment to **Staging**.
+
+            📦 Workflow run:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   deploy-production:
     name: Deploy to NiFi Production
     if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: self-hosted
     needs: deploy-staging
+
     environment:
       name: production
       url: ${{ secrets.NIFI_PROD_URL }}
-    
+
     steps:
       - name: Checkout infrastructure
         uses: actions/checkout@v4
-      
+        with:
+          repository: medalizaidi/nifi
+          ref: main
+          path: infra
+
       - name: Checkout flows
         uses: actions/checkout@v4
         with:
           repository: medalizaidi/nifi-flows
           ref: main
           path: flows
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      
+
       - name: Install dependencies
         run: |
           pip install nipyapi requests urllib3
-      
+
       - name: Deploy flow to Production
         env:
           NIFI_API: ${{ secrets.NIFI_PROD_URL }}
@@ -123,4 +124,4 @@ jobs:
           BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
           FLOW_NAME: ${{ secrets.FLOW_NAME }}
         run: |
-          python deploy_flow.py prod
+          python infra/deploy_flow.py prod
