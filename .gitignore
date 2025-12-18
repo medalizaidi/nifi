@@ -23,3 +23,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+fix-auto-push.sh
+fix-git-uncommitted.sh
+fresh-start.sh
+Setup.sh
+providers.xml
