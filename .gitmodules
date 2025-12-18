@@ -1,0 +1,3 @@
+[submodule "registry/flow_storage"]
+	path = registry/flow_storage
+	url = https://github.com/medalizaidi/nifi.git

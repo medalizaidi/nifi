@@ -37,6 +37,7 @@ jobs:
 
   deploy-production:
     name: Deploy to NiFi Production
+    if: github.ref == 'refs/heads/master'
     runs-on: self-hosted
     needs: deploy-staging
     environment:
