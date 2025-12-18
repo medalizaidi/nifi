@@ -10,7 +10,7 @@ docker-compose stop registry
 echo ""
 
 echo "2. Checking Git status in flow_storage..."
-
+cd registry/flow_storage
 
 echo "Current Git status:"
 git status
@@ -47,6 +47,7 @@ else
     echo "✅ Repository reset to clean state"
 fi
 
+cd ../..
 echo ""
 
 echo "6. Starting registry container..."
