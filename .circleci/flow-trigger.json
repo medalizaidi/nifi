@@ -1,0 +1,7 @@
+{
+  "flow_commit": "6b0e5a17566718dc52bde1fba293079f26e5abbf",
+  "flow_author": "NiFi Registry",
+  "flow_email": "nifi-registry@apache.org",
+  "triggered_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "triggered_from": "nifi-flows repository"
+}
