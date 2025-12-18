@@ -1,5 +1,5 @@
 {
-  "flow_commit": "6bd395cfcc877c8c3fcc4caa924fac983fbd03bd",
+  "flow_commit": "bfc9c7286d5e40fa991892ffd72bb6d3f3033824",
   "flow_author": "NiFi Registry",
   "flow_email": "nifi-registry@apache.org",
   "triggered_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
