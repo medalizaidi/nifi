@@ -55,6 +55,17 @@ jobs:
           [ -z "${{ secrets.NIFI_REGISTRY_URL }}" ] && echo "❌ NIFI_REGISTRY_URL not set" && exit 1
           echo "✅ All secrets are configured"
 
+      - name: Deploy flow to Staging
+        env:
+          NIFI_API: ${{ secrets.NIFI_STG_URL }}
+          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
+          NIFI_USERNAME: ${{ secrets.NIFI_USERNAME }}
+          NIFI_PASSWORD: ${{ secrets.NIFI_PASSWORD }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          FLOW_NAME: ${{ secrets.FLOW_NAME }}
+        run: |
+          python infra/deploy_flow.py staging
+
       - name: Comment on flow commit
         if: github.event_name == 'repository_dispatch'
         uses: peter-evans/commit-comment@v3
@@ -103,3 +114,13 @@ jobs:
         run: |
           pip install nipyapi requests urllib3
 
+      - name: Deploy flow to Production
+        env:
+          NIFI_API: ${{ secrets.NIFI_PROD_URL }}
+          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
+          NIFI_USERNAME: ${{ secrets.NIFI_USERNAME }}
+          NIFI_PASSWORD: ${{ secrets.NIFI_PASSWORD }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          FLOW_NAME: ${{ secrets.FLOW_NAME }}
+        run: |
+          python infra/deploy_flow.py prod
