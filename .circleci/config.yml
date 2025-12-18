@@ -6,8 +6,24 @@ commands:
       - run:
           name: Install Python dependencies
           command: |
-            pip3 install nipyapi requests urllib3 --break-system-packages || \
+            pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
             pip install nipyapi requests urllib3
+
+  manual-checkout:
+    steps:
+      - run:
+          name: Clone repository
+          command: |
+            if [ -d ~/project ]; then
+              cd ~/project
+              git pull origin ${CIRCLE_BRANCH}
+            else
+              git clone ${CIRCLE_REPOSITORY_URL} ~/project
+              cd ~/project
+              git checkout ${CIRCLE_BRANCH}
+            fi
+            cd ~/project
+            ls -la
 
 jobs:
   test-connection:
@@ -18,23 +34,35 @@ jobs:
           name: Test NiFi connectivity
           command: |
             echo "Testing NiFi instances..."
-            curl -s http://localhost:18080/nifi-registry || echo "Registry check"
-            curl -s http://localhost:8082/nifi-api/flow/about | grep version || echo "Staging check"
+            curl -s http://localhost:18080/nifi-registry || echo "Registry: checking..."
+            curl -s http://localhost:8082/nifi-api/flow/about | grep version || echo "Staging: checking..."
 
   deploy-staging:
     machine: true
     resource_class: avaxia-test/ci
     steps:
-      - checkout
+      - manual-checkout
       - install-python-deps
+      
       - run:
           name: Deploy to staging
           command: |
+            cd ~/project
             export NIFI_API="http://localhost:8082/nifi-api"
             export REGISTRY_API="http://localhost:18080"
-            python3 deploy_flow.py staging
+            python3 deploy_flow.py staging || python deploy_flow.py staging
+
+  runner-test:
+    machine: true
+    resource_class: avaxia-test/ci
+    steps:
+      - run: echo "Hi I'm on Runners!"
 
 workflows:
+  testing:
+    jobs:
+      - runner-test
+  
   deploy-flows:
     jobs:
       - test-connection:
