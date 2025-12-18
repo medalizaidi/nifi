@@ -10,7 +10,7 @@ jobs:
   deploy-staging:
     name: Deploy to NiFi Staging
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout flows
@@ -35,7 +35,7 @@ jobs:
   deploy-production:
     name: Deploy to NiFi Production
     if: startsWith(github.ref, 'refs/heads/release/')
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: deploy-staging
     environment:
       name: production
