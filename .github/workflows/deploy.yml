@@ -1,128 +1,32 @@
 name: NiFi CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
-  
-  # Triggered by nifi-flows repository when flows are updated
   repository_dispatch:
     types: [flow-updated]
   
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
+  
+  push:
+    branches:
+      - main
 
 jobs:
-  deploy-staging:
-    name: Deploy to NiFi Staging
-    # Deploy on main branch push OR when flows are updated
-    if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
+  test-dispatch:
+    name: Test Dispatch Event
     runs-on: self-hosted
     
     steps:
-      - name: Checkout infrastructure
-        uses: actions/checkout@v4
-        with:
-          repository: medalizaidi/nifi
-          ref: main
-      
-      - name: Checkout flows
-        uses: actions/checkout@v4
-        with:
-          repository: medalizaidi/nifi-flows
-          ref: main
-          path: flows
-      
-      - name: Display flow update info
-        if: github.event_name == 'repository_dispatch'
+      - name: Show event details
         run: |
-          echo "🔔 Flow Update Triggered Deployment"
-          echo "Flow Commit: ${{ github.event.client_payload.flow_commit }}"
-          echo "Flow Message: ${{ github.event.client_payload.flow_message }}"
-          echo "Flow Author: ${{ github.event.client_payload.flow_author }}"
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      
-      - name: Install dependencies
-        run: |
-          pip install nipyapi requests urllib3
-      
-      - name: Validate secrets
-        run: |
-          if [ -z "${{ secrets.NIFI_STG_URL }}" ]; then
-            echo "❌ ERROR: NIFI_STG_URL secret is not set"
-            exit 1
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event action: ${{ github.event.action }}"
+          
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            echo "✅ Repository dispatch event received!"
+            echo "Event type: ${{ github.event.client_payload }}"
           fi
-          if [ -z "${{ secrets.NIFI_REGISTRY_URL }}" ]; then
-            echo "❌ ERROR: NIFI_REGISTRY_URL secret is not set"
-            exit 1
-          fi
-          echo "✅ All secrets are configured"
       
-      - name: Deploy flow to Staging
-        env:
-          NIFI_API: ${{ secrets.NIFI_STG_URL }}
-          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
-          NIFI_USERNAME: ${{ secrets.NIFI_USERNAME }}
-          NIFI_PASSWORD: ${{ secrets.NIFI_PASSWORD }}
-          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-          FLOW_NAME: ${{ secrets.FLOW_NAME }}
+      - name: Dummy deployment
         run: |
-          python deploy_flow.py staging
-      
-      - name: Comment on flow commit (if triggered by flow update)
-        if: github.event_name == 'repository_dispatch'
-        uses: peter-evans/commit-comment@v3
-        with:
-          token: ${{ secrets.NIFI_REPO_PAT }}
-          repository: medalizaidi/nifi-flows
-          sha: ${{ github.event.client_payload.flow_commit }}
-          body: |
-            🚀 **Deployment Triggered**
-            
-            This flow update triggered automatic deployment to staging.
-            
-            ✅ Deployed to: NiFi Staging
-            📦 Workflow: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-  deploy-production:
-    name: Deploy to NiFi Production
-    if: startsWith(github.ref, 'refs/heads/release/')
-    runs-on: self-hosted
-    needs: deploy-staging
-    environment:
-      name: production
-      url: ${{ secrets.NIFI_PROD_URL }}
-    
-    steps:
-      - name: Checkout infrastructure
-        uses: actions/checkout@v4
-      
-      - name: Checkout flows
-        uses: actions/checkout@v4
-        with:
-          repository: medalizaidi/nifi-flows
-          ref: main
-          path: flows
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      
-      - name: Install dependencies
-        run: |
-          pip install nipyapi requests urllib3
-      
-      - name: Deploy flow to Production
-        env:
-          NIFI_API: ${{ secrets.NIFI_PROD_URL }}
-          REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
-          NIFI_USERNAME: ${{ secrets.NIFI_USERNAME }}
-          NIFI_PASSWORD: ${{ secrets.NIFI_PASSWORD }}
-          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-          FLOW_NAME: ${{ secrets.FLOW_NAME }}
-        run: |
-          python deploy_flow.py prod
+          echo "🚀 Mock deployment triggered"
+          echo "This proves the dispatch event is working"
