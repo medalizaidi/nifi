@@ -105,7 +105,7 @@ jobs:
             cd /tmp/nifi-deploy
             
             export NIFI_API="http://localhost:8082/nifi-api"
-            export REGISTRY_API="http://localhost:18080"
+            export REGISTRY_API="http://localhost:18080/nifi-registry-api"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-test}"
             
@@ -163,7 +163,7 @@ jobs:
             cd /tmp/nifi-deploy
             
             export NIFI_API="http://localhost:8083/nifi-api"
-            export REGISTRY_API="http://localhost:18080"
+            export REGISTRY_API="http://localhost:18080/nifi-registry-api"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-test}"
             
