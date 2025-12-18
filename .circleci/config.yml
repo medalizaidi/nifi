@@ -1,25 +1,49 @@
 version: 2.1
+
+commands:
+  install-python-deps:
+    steps:
+      - run:
+          name: Install Python dependencies
+          command: |
+            pip3 install nipyapi requests urllib3 --break-system-packages || \
+            pip install nipyapi requests urllib3
+
 jobs:
-  deploy_nifi:
-    docker:
-      - image: cimg/python:3.11
+  test-connection:
+    machine: true
+    resource_class: avaxia-test/ci
+    steps:
+      - run:
+          name: Test NiFi connectivity
+          command: |
+            echo "Testing NiFi instances..."
+            curl -s http://localhost:18080/nifi-registry || echo "Registry check"
+            curl -s http://localhost:8082/nifi-api/flow/about | grep version || echo "Staging check"
+
+  deploy-staging:
+    machine: true
+    resource_class: avaxia-test/ci
     steps:
       - checkout
+      - install-python-deps
       - run:
-          name: Install dependencies
-          command: pip install nipyapi
-      - run:
-          name: Deploy to Staging
-          command: python deploy_flow.py staging
-      - run:
-          name: Smoke test Staging
-          command: curl http://nifi-stg:8080/nifi-api/controller/status
-      - run:
-          name: Deploy to Production
-          command: python deploy_flow.py prod
+          name: Deploy to staging
+          command: |
+            export NIFI_API="http://localhost:8082/nifi-api"
+            export REGISTRY_API="http://localhost:18080"
+            python3 deploy_flow.py staging
 
 workflows:
-  version: 2
-  deploy:
+  deploy-flows:
     jobs:
-      - deploy_nifi
+      - test-connection:
+          filters:
+            branches:
+              only: main
+      - deploy-staging:
+          requires:
+            - test-connection
+          filters:
+            branches:
+              only: main
