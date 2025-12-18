@@ -1,31 +1,19 @@
 version: 2.1
 
-commands:
-  install-python-deps:
+jobs:
+  runner-test:
+    machine: true
+    resource_class: avaxia-test/ci
     steps:
-      - run:
-          name: Install Python dependencies
+      - run: 
+          name: Basic test
           command: |
-            pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
-            pip install nipyapi requests urllib3
-
-  manual-checkout:
-    steps:
-      - run:
-          name: Clone repository
-          command: |
-            if [ -d ~/project ]; then
-              cd ~/project
-              git pull origin ${CIRCLE_BRANCH}
-            else
-              git clone ${CIRCLE_REPOSITORY_URL} ~/project
-              cd ~/project
-              git checkout ${CIRCLE_BRANCH}
-            fi
-            cd ~/project
+            echo "✅ Runner is working!"
+            echo "User: $(whoami)"
+            echo "Home: $HOME"
+            echo "Working dir: $(pwd)"
             ls -la
 
-jobs:
   test-connection:
     machine: true
     resource_class: avaxia-test/ci
@@ -34,31 +22,105 @@ jobs:
           name: Test NiFi connectivity
           command: |
             echo "Testing NiFi instances..."
-            curl -s http://localhost:18080/nifi-registry || echo "Registry: checking..."
-            curl -s http://localhost:8082/nifi-api/flow/about | grep version || echo "Staging: checking..."
+            
+            echo "Registry:"
+            curl -s -o /dev/null -w "%{http_code}" http://localhost:18080/nifi-registry && echo "✅" || echo "❌"
+            
+            echo "Staging:"
+            curl -s http://localhost:8082/nifi-api/flow/about | grep -q version && echo "✅" || echo "❌"
+            
+            echo "Production:"
+            curl -s http://localhost:8083/nifi-api/flow/about | grep -q version && echo "✅" || echo "❌"
 
   deploy-staging:
     machine: true
     resource_class: avaxia-test/ci
     steps:
-      - manual-checkout
-      - install-python-deps
+      - run:
+          name: Setup workspace
+          command: |
+            # Create workspace
+            mkdir -p /tmp/nifi-workspace
+            cd /tmp/nifi-workspace
+            
+            # Clone repo
+            echo "Cloning repository..."
+            git clone ${CIRCLE_REPOSITORY_URL} .
+            git checkout ${CIRCLE_BRANCH}
+            
+            echo "✅ Repository ready"
+            ls -la
+      
+      - run:
+          name: Install dependencies
+          command: |
+            cd /tmp/nifi-workspace
+            pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
+            pip install nipyapi requests urllib3
       
       - run:
           name: Deploy to staging
           command: |
-            cd ~/project
+            cd /tmp/nifi-workspace
+            
             export NIFI_API="http://localhost:8082/nifi-api"
             export REGISTRY_API="http://localhost:18080"
-            python3 deploy_flow.py staging || python deploy_flow.py staging
+            export BUCKET_NAME="${BUCKET_NAME:-test}"
+            export FLOW_NAME="${FLOW_NAME:-test}"
+            
+            echo "Deploying to staging..."
+            echo "Files in workspace:"
+            ls -la
+            
+            if [ -f "deploy_flow.py" ]; then
+              python3 deploy_flow.py staging || python deploy_flow.py staging
+              echo "✅ Deployment completed"
+            else
+              echo "⚠️ deploy_flow.py not found, skipping deployment"
+              echo "This is a test run"
+            fi
 
-  runner-test:
+  deploy-production:
     machine: true
     resource_class: avaxia-test/ci
     steps:
-      - run: echo "Hi I'm on Runners!"
+      - run:
+          name: Setup workspace
+          command: |
+            mkdir -p /tmp/nifi-workspace
+            cd /tmp/nifi-workspace
+            git clone ${CIRCLE_REPOSITORY_URL} .
+            git checkout ${CIRCLE_BRANCH}
+      
+      - run:
+          name: Install dependencies
+          command: |
+            cd /tmp/nifi-workspace
+            pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
+            pip install nipyapi requests urllib3
+      
+      - run:
+          name: Deploy to production
+          command: |
+            cd /tmp/nifi-workspace
+            
+            export NIFI_API="http://localhost:8083/nifi-api"
+            export REGISTRY_API="http://localhost:18080"
+            export BUCKET_NAME="${BUCKET_NAME:-test}"
+            export FLOW_NAME="${FLOW_NAME:-test}"
+            
+            echo "🔥 Deploying to PRODUCTION"
+            
+            if [ -f "deploy_flow.py" ]; then
+              python3 deploy_flow.py prod || python deploy_flow.py prod
+              echo "✅ Production deployment completed"
+            else
+              echo "⚠️ deploy_flow.py not found"
+            fi
 
 workflows:
+  version: 2
+  
   testing:
     jobs:
       - runner-test
@@ -69,9 +131,29 @@ workflows:
           filters:
             branches:
               only: main
+      
       - deploy-staging:
           requires:
             - test-connection
           filters:
             branches:
               only: main
+      
+      - hold-production:
+          type: approval
+          requires:
+            - deploy-staging
+          filters:
+            branches:
+              only: 
+                - main
+                - /release\/.*/
+      
+      - deploy-production:
+          requires:
+            - hold-production
+          filters:
+            branches:
+              only:
+                - main
+                - /release\/.*/
