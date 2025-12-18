@@ -1,37 +1,76 @@
 version: 2.1
 
+# Define pipeline parameters for external triggers
+parameters:
+  triggered_by:
+    type: string
+    default: "manual"
+  flow_commit:
+    type: string
+    default: ""
+  flow_message:
+    type: string
+    default: ""
+  flow_author:
+    type: string
+    default: ""
+
 jobs:
   deploy-staging:
     machine: true
     resource_class: avaxia-test/ci
     steps:
       - run:
-          name: Clone repository
+          name: Display trigger information
           command: |
-            echo "Setting up workspace..."
+            echo "=========================================="
+            echo "Deployment Trigger Information"
+            echo "=========================================="
+            echo "Triggered by: << pipeline.parameters.triggered_by >>"
+            echo "Branch: ${CIRCLE_BRANCH}"
+            echo "Commit: ${CIRCLE_SHA1:0:7}"
             
-            REPO_URL="${CIRCLE_REPOSITORY_URL:-https://github.com/medalizaidi/nifi.git}"
-            BRANCH="${CIRCLE_BRANCH:-main}"
+            if [ "<< pipeline.parameters.triggered_by >>" = "flow_update" ]; then
+              echo ""
+              echo "🔔 Flow Update Triggered Deployment"
+              echo "Flow Commit: << pipeline.parameters.flow_commit >>"
+              echo "Flow Message: << pipeline.parameters.flow_message >>"
+              echo "Flow Author: << pipeline.parameters.flow_author >>"
+            fi
+            echo "=========================================="
+      
+      - run:
+          name: Clone infrastructure repository
+          command: |
+            echo "Cloning infrastructure (nifi) repository..."
+            
             WORKSPACE="/tmp/nifi-deploy"
-            
-            echo "Repository: $REPO_URL"
-            echo "Branch: $BRANCH"
-            echo "Workspace: $WORKSPACE"
-            
-            # Clean workspace if it exists
             rm -rf $WORKSPACE
             mkdir -p $WORKSPACE
             
-            # Clone repository
-            echo "Cloning repository..."
-            git clone $REPO_URL $WORKSPACE
-            
+            git clone https://github.com/medalizaidi/nifi.git $WORKSPACE
             cd $WORKSPACE
-            git checkout $BRANCH
+            git checkout main
             
-            echo "✅ Repository cloned"
-            echo "Files:"
+            echo "✅ Infrastructure repository cloned"
             ls -la
+      
+      - run:
+          name: Clone flows repository
+          command: |
+            echo "Cloning flows (nifi-flows) repository..."
+            
+            FLOWS_DIR="/tmp/nifi-flows"
+            rm -rf $FLOWS_DIR
+            mkdir -p $FLOWS_DIR
+            
+            git clone https://github.com/medalizaidi/nifi-flows.git $FLOWS_DIR
+            cd $FLOWS_DIR
+            git checkout main
+            
+            echo "✅ Flows repository cloned"
+            echo "Latest flow commit:"
+            git log -1 --oneline
       
       - run:
           name: Install Python dependencies
@@ -44,13 +83,30 @@ jobs:
             echo "✅ Dependencies installed"
       
       - run:
+          name: Validate configuration
+          command: |
+            echo "Validating environment variables..."
+            
+            if [ -z "${NIFI_STG_URL}" ]; then
+              echo "❌ NIFI_STG_URL not set"
+              exit 1
+            fi
+            
+            if [ -z "${NIFI_REGISTRY_URL}" ]; then
+              echo "❌ NIFI_REGISTRY_URL not set"
+              exit 1
+            fi
+            
+            echo "✅ All required variables are configured"
+      
+      - run:
           name: Deploy to staging
           command: |
             cd /tmp/nifi-deploy
             
             # Use environment variables from CircleCI project settings
-            export NIFI_API="${NIFI_STG_URL:-http://localhost:8082/nifi-api}"
-            export REGISTRY_API="${NIFI_REGISTRY_URL:-http://localhost:18080/nifi-registry-api}"
+            export NIFI_API="${NIFI_STG_URL}"
+            export REGISTRY_API="${NIFI_REGISTRY_URL}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-demo}"
             export NIFI_USERNAME="${NIFI_USERNAME}"
@@ -83,20 +139,41 @@ jobs:
     resource_class: avaxia-test/ci
     steps:
       - run:
-          name: Clone repository
+          name: Production deployment warning
           command: |
-            REPO_URL="${CIRCLE_REPOSITORY_URL:-https://github.com/medalizaidi/nifi.git}"
-            BRANCH="${CIRCLE_BRANCH:-main}"
+            echo "=========================================="
+            echo "🔥 PRODUCTION DEPLOYMENT"
+            echo "=========================================="
+            echo "Branch: ${CIRCLE_BRANCH}"
+            echo "Commit: ${CIRCLE_SHA1:0:7}"
+            echo "⚠️  Deploying to PRODUCTION environment"
+            echo "=========================================="
+      
+      - run:
+          name: Clone infrastructure repository
+          command: |
             WORKSPACE="/tmp/nifi-deploy"
-            
             rm -rf $WORKSPACE
             mkdir -p $WORKSPACE
             
-            git clone $REPO_URL $WORKSPACE
+            git clone https://github.com/medalizaidi/nifi.git $WORKSPACE
             cd $WORKSPACE
-            git checkout $BRANCH
+            git checkout main
             
-            echo "✅ Repository ready"
+            echo "✅ Infrastructure repository ready"
+      
+      - run:
+          name: Clone flows repository
+          command: |
+            FLOWS_DIR="/tmp/nifi-flows"
+            rm -rf $FLOWS_DIR
+            mkdir -p $FLOWS_DIR
+            
+            git clone https://github.com/medalizaidi/nifi-flows.git $FLOWS_DIR
+            cd $FLOWS_DIR
+            git checkout main
+            
+            echo "✅ Flows repository ready"
       
       - run:
           name: Install Python dependencies
@@ -111,8 +188,8 @@ jobs:
             cd /tmp/nifi-deploy
             
             # Use environment variables from CircleCI project settings
-            export NIFI_API="${NIFI_PROD_URL:-http://localhost:8083/nifi-api}"
-            export REGISTRY_API="${NIFI_REGISTRY_URL:-http://localhost:18080/nifi-registry-api}"
+            export NIFI_API="${NIFI_PROD_URL}"
+            export REGISTRY_API="${NIFI_REGISTRY_URL}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-test}"
             export NIFI_USERNAME="${NIFI_USERNAME}"
@@ -141,13 +218,14 @@ jobs:
 workflows:
   version: 2
   
-  # Main deployment workflow
+  # Main deployment workflow - triggered by push or external API call
   deploy-flows:
     jobs:
       - deploy-staging:
           filters:
             branches:
-              only: main
+              only: 
+                - main
       
       - hold-production:
           type: approval
