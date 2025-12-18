@@ -1,62 +1,6 @@
 version: 2.1
 
 jobs:
-  runner-test:
-    machine: true
-    resource_class: avaxia-test/ci
-    steps:
-      - run: 
-          name: Test runner and environment
-          command: |
-            echo "✅ Runner is working!"
-            echo "User: $(whoami)"
-            echo "Home: $HOME"
-            echo "Working dir: $(pwd)"
-            echo ""
-            echo "Environment variables:"
-            echo "CIRCLE_REPOSITORY_URL: ${CIRCLE_REPOSITORY_URL}"
-            echo "CIRCLE_BRANCH: ${CIRCLE_BRANCH}"
-            echo "CIRCLE_SHA1: ${CIRCLE_SHA1}"
-            echo ""
-            echo "Git version: $(git --version)"
-            echo "Python version: $(python3 --version)"
-
-  test-connection:
-    machine: true
-    resource_class: avaxia-test/ci
-    steps:
-      - run:
-          name: Test NiFi connectivity
-          command: |
-            echo "=========================================="
-            echo "Testing NiFi instances..."
-            echo "=========================================="
-            
-            echo "Registry (18080):"
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:18080/nifi-registry 2>/dev/null | grep -q "200\|302"; then
-              echo "✅ Accessible"
-            else
-              echo "❌ Not accessible"
-            fi
-            
-            echo ""
-            echo "Staging (8082):"
-            if curl -s http://localhost:8082/nifi-api/flow/about 2>/dev/null | grep -q version; then
-              echo "✅ Accessible"
-              curl -s http://localhost:8082/nifi-api/flow/about | grep -o '"version":"[^"]*"'
-            else
-              echo "❌ Not accessible"
-            fi
-            
-            echo ""
-            echo "Production (8083):"
-            if curl -s http://localhost:8083/nifi-api/flow/about 2>/dev/null | grep -q version; then
-              echo "✅ Accessible"
-              curl -s http://localhost:8083/nifi-api/flow/about | grep -o '"version":"[^"]*"'
-            else
-              echo "❌ Not accessible"
-            fi
-
   deploy-staging:
     machine: true
     resource_class: avaxia-test/ci
@@ -104,10 +48,13 @@ jobs:
           command: |
             cd /tmp/nifi-deploy
             
-            export NIFI_API="http://localhost:8082/nifi-api"
-            export REGISTRY_API="http://localhost:18080/nifi-registry-api"
+            # Use environment variables from CircleCI project settings
+            export NIFI_API="${NIFI_STG_URL:-http://localhost:8082/nifi-api}"
+            export REGISTRY_API="${NIFI_REGISTRY_URL:-http://localhost:18080/nifi-registry-api}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-demo}"
+            export NIFI_USERNAME="${NIFI_USERNAME}"
+            export NIFI_PASSWORD="${NIFI_PASSWORD}"
             
             echo "=========================================="
             echo "🚀 Deploying to Staging"
@@ -116,6 +63,7 @@ jobs:
             echo "REGISTRY_API: $REGISTRY_API"
             echo "BUCKET_NAME: $BUCKET_NAME"
             echo "FLOW_NAME: $FLOW_NAME"
+            echo "NIFI_USERNAME: ${NIFI_USERNAME:+***set***}"
             echo ""
             
             if [ -f "deploy_flow.py" ]; then
@@ -162,10 +110,13 @@ jobs:
           command: |
             cd /tmp/nifi-deploy
             
-            export NIFI_API="http://localhost:8083/nifi-api"
-            export REGISTRY_API="http://localhost:18080/nifi-registry-api"
+            # Use environment variables from CircleCI project settings
+            export NIFI_API="${NIFI_PROD_URL:-http://localhost:8083/nifi-api}"
+            export REGISTRY_API="${NIFI_REGISTRY_URL:-http://localhost:18080/nifi-registry-api}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-test}"
+            export NIFI_USERNAME="${NIFI_USERNAME}"
+            export NIFI_PASSWORD="${NIFI_PASSWORD}"
             
             echo "=========================================="
             echo "🔥 Deploying to PRODUCTION"
@@ -174,6 +125,7 @@ jobs:
             echo "REGISTRY_API: $REGISTRY_API"
             echo "BUCKET_NAME: $BUCKET_NAME"
             echo "FLOW_NAME: $FLOW_NAME"
+            echo "NIFI_USERNAME: ${NIFI_USERNAME:+***set***}"
             echo ""
             
             if [ -f "deploy_flow.py" ]; then
@@ -189,22 +141,10 @@ jobs:
 workflows:
   version: 2
   
-  # Simple test
-  testing:
-    jobs:
-      - runner-test
-  
   # Main deployment workflow
   deploy-flows:
     jobs:
-      - test-connection:
-          filters:
-            branches:
-              only: main
-      
       - deploy-staging:
-          requires:
-            - test-connection
           filters:
             branches:
               only: main
