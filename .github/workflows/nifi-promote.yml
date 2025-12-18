@@ -29,6 +29,9 @@ jobs:
         env:
           NIFI_API: ${{ secrets.NIFI_STG_URL }}
           REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          FLOW_NAME: ${{ secrets.FLOW_NAME }}
+          
         run: |
           python deploy_flow.py staging
 
@@ -58,5 +61,7 @@ jobs:
         env:
           NIFI_API: ${{ secrets.NIFI_PROD_URL }}
           REGISTRY_API: ${{ secrets.NIFI_REGISTRY_URL }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          FLOW_NAME: ${{ secrets.FLOW_NAME }}
         run: |
           python deploy_flow.py prod
