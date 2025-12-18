@@ -1,0 +1,25 @@
+# NiFi Registry runtime directories
+registry/flow_storage/
+registry/database/
+registry/extension_bundles/
+
+# Backups
+registry_backup_*/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
