@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - "release/*"
+
 
 jobs:
   deploy-staging:
@@ -37,7 +37,6 @@ jobs:
 
   deploy-production:
     name: Deploy to NiFi Production
-    if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: self-hosted
     needs: deploy-staging
     environment:
