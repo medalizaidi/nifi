@@ -19,16 +19,19 @@ jobs:
       
       - name: Check if PR already exists
         id: check_pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_EXISTS=$(gh pr list --base production --head main --json number --jq length)
-          echo "pr_exists=$PR_EXISTS" >> $GITHUB_OUTPUT
+          # Use GitHub API to check for existing PRs
+          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=production&head=${{ github.repository_owner }}:main")
           
-          if [ "$PR_EXISTS" -gt 0 ]; then
+          PR_COUNT=$(echo "$RESPONSE" | grep -o '"number":' | wc -l)
+          echo "pr_exists=$PR_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$PR_COUNT" -gt 0 ]; then
             echo "✅ PR already exists"
-            PR_NUMBER=$(gh pr list --base production --head main --json number --jq '.[0].number')
+            PR_NUMBER=$(echo "$RESPONSE" | grep -o '"number":[0-9]*' | head -1 | cut -d: -f2)
             echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "Existing PR: #$PR_NUMBER"
           else
             echo "📝 No PR exists, will create one"
           fi
@@ -38,6 +41,7 @@ jobs:
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
           
           {
             echo "message<<EOF"
@@ -46,18 +50,23 @@ jobs:
           } >> $GITHUB_OUTPUT
           
           echo "author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
       
       - name: Create Pull Request
         if: steps.check_pr.outputs.pr_exists == '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          PR_TITLE="🚀 Deploy to Production: ${{ steps.commit_info.outputs.message }}"
+          
+          # Escape special characters for JSON
+          COMMIT_MSG=$(echo "${{ steps.commit_info.outputs.message }}" | sed 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+          
           PR_BODY="## 🚀 Deploy to Production
 
           **Latest Changes:**
           ${{ steps.commit_info.outputs.message }}
 
-          **Author:** ${{ steps.commit_info.outputs.author }}
+          **Author:** ${{ steps.commit_info.outputs.author }}  
+          **Commit:** \`${{ steps.commit_info.outputs.sha }}\`
 
           ---
 
@@ -74,30 +83,54 @@ jobs:
 
           **After merging this PR:**
           CircleCI will automatically deploy to the production NiFi instance.
-          "
+
+          **View Staging Deployment:**
+          https://app.circleci.com/pipelines/circleci/NvYUyvaFTwZRZ7JJk3ccvX/LXt2U6FPPvWG8CTRUkbzpo"
           
-          gh pr create \
-            --title "🚀 Deploy to Production: ${{ steps.commit_info.outputs.message }}" \
-            --body "$PR_BODY" \
-            --base production \
-            --head main \
-            --label "deployment" \
-            --label "production"
+          # Create PR via API (without labels)
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d @- << JSON
+          {
+            "title": "$PR_TITLE",
+            "body": $(echo "$PR_BODY" | jq -Rs .),
+            "head": "main",
+            "base": "production"
+          }
+          JSON
+          )
           
-          echo "✅ Pull Request created"
+          PR_NUMBER=$(echo "$RESPONSE" | grep -o '"number":[0-9]*' | head -1 | cut -d: -f2)
+          PR_URL=$(echo "$RESPONSE" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+          
+          echo "✅ Pull Request created: #$PR_NUMBER"
+          echo "URL: $PR_URL"
       
       - name: Update existing PR
         if: steps.check_pr.outputs.pr_exists != '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ steps.check_pr.outputs.pr_number }}
           
-          gh pr comment $PR_NUMBER --body "🔄 **New changes pushed to staging**
+          COMMENT="🔄 **New changes pushed to staging**
 
-          Latest commit: ${{ steps.commit_info.outputs.message }}
+          Latest commit: \`${{ steps.commit_info.outputs.sha }}\`
+          
+          Message: ${{ steps.commit_info.outputs.message }}
+          
           Author: ${{ steps.commit_info.outputs.author }}
           
           Staging deployment completed. Ready for production review."
+          
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
+            -d @- << JSON
+          {
+            "body": $(echo "$COMMENT" | jq -Rs .)
+          }
+          JSON
           
           echo "✅ PR #$PR_NUMBER updated with new commit info"
