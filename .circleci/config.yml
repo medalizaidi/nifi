@@ -1,6 +1,5 @@
 version: 2.1
 
-# Define pipeline parameters for external triggers
 parameters:
   triggered_by:
     type: string
@@ -24,133 +23,62 @@ jobs:
           name: Display trigger information
           command: |
             echo "=========================================="
-            echo "Deployment Trigger Information"
-            echo "=========================================="
-            echo "Triggered by: << pipeline.parameters.triggered_by >>"
+            echo "🚀 Deploying to STAGING"
             echo "Branch: ${CIRCLE_BRANCH}"
-            echo "Commit: ${CIRCLE_SHA1:0:7}"
-            
+            echo "Triggered by: << pipeline.parameters.triggered_by >>"
             if [ "<< pipeline.parameters.triggered_by >>" = "flow_update" ]; then
-              echo ""
-              echo "🔔 Flow Update Triggered Deployment"
-              echo "Flow Commit: << pipeline.parameters.flow_commit >>"
-              echo "Flow Message: << pipeline.parameters.flow_message >>"
-              echo "Flow Author: << pipeline.parameters.flow_author >>"
+              echo "Flow: << pipeline.parameters.flow_message >>"
+              echo "Author: << pipeline.parameters.flow_author >>"
             fi
             echo "=========================================="
       
       - run:
-          name: Clone infrastructure repository
+          name: Clone repositories
           command: |
-            echo "Cloning infrastructure (nifi) repository..."
-            
             WORKSPACE="/tmp/nifi-deploy"
             rm -rf $WORKSPACE
             mkdir -p $WORKSPACE
             
             git clone https://github.com/medalizaidi/nifi.git $WORKSPACE
             cd $WORKSPACE
-            git checkout main
+            git checkout ${CIRCLE_BRANCH}
             
-            echo "✅ Infrastructure repository cloned"
-            ls -la
-      
-      - run:
-          name: Clone flows repository
-          command: |
-            echo "Cloning flows (nifi-flows) repository..."
-            
-            FLOWS_DIR="/tmp/nifi-flows"
-            rm -rf $FLOWS_DIR
-            mkdir -p $FLOWS_DIR
-            
-            git clone https://github.com/medalizaidi/nifi-flows.git $FLOWS_DIR
-            cd $FLOWS_DIR
-            git checkout main
-            
-            echo "✅ Flows repository cloned"
-            echo "Latest flow commit:"
-            git log -1 --oneline
+            echo "✅ Repository cloned"
       
       - run:
           name: Install Python dependencies
           command: |
-            echo "Installing Python dependencies..."
             pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
-            pip3 install nipyapi requests urllib3 || \
-            pip install nipyapi requests urllib3
-            
-            echo "✅ Dependencies installed"
-      
-      - run:
-          name: Validate configuration
-          command: |
-            echo "Validating environment variables..."
-            
-            if [ -z "${NIFI_STG_URL}" ]; then
-              echo "❌ NIFI_STG_URL not set"
-              exit 1
-            fi
-            
-            if [ -z "${NIFI_REGISTRY_URL}" ]; then
-              echo "❌ NIFI_REGISTRY_URL not set"
-              exit 1
-            fi
-            
-            echo "✅ All required variables are configured"
+            pip3 install nipyapi requests urllib3
       
       - run:
           name: Deploy to staging
           command: |
             cd /tmp/nifi-deploy
             
-            # Use environment variables from CircleCI project settings
             export NIFI_API="${NIFI_STG_URL}"
             export REGISTRY_API="${NIFI_REGISTRY_URL}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-demo}"
-            export NIFI_USERNAME="${NIFI_USERNAME}"
-            export NIFI_PASSWORD="${NIFI_PASSWORD}"
             
-            echo "=========================================="
-            echo "🚀 Deploying to Staging"
-            echo "=========================================="
-            echo "NIFI_API: $NIFI_API"
-            echo "REGISTRY_API: $REGISTRY_API"
-            echo "BUCKET_NAME: $BUCKET_NAME"
-            echo "FLOW_NAME: $FLOW_NAME"
-            echo "NIFI_USERNAME: ${NIFI_USERNAME:+***set***}"
-            echo ""
-            
-            if [ -f "deploy_flow.py" ]; then
-              echo "Running deployment script..."
-              python3 deploy_flow.py staging || python deploy_flow.py staging
-              echo ""
-              echo "✅ Deployment completed successfully"
-            else
-              echo "❌ deploy_flow.py not found!"
-              echo "Available files:"
-              ls -la
-              exit 1
-            fi
+            python3 deploy_flow.py staging || python deploy_flow.py staging
+            echo "✅ Staging deployment completed"
 
   deploy-production:
     machine: true
     resource_class: avaxia-test/ci
     steps:
       - run:
-          name: Production deployment warning
+          name: Production deployment info
           command: |
             echo "=========================================="
-            echo "🔥 PRODUCTION DEPLOYMENT"
-            echo "=========================================="
+            echo "🔥 Deploying to PRODUCTION"
             echo "Branch: ${CIRCLE_BRANCH}"
             echo "Commit: ${CIRCLE_SHA1:0:7}"
-            echo "⚠️  Deploying to PRODUCTION environment"
             echo "=========================================="
       
       - run:
-          name: Clone infrastructure repository
+          name: Clone repositories
           command: |
             WORKSPACE="/tmp/nifi-deploy"
             rm -rf $WORKSPACE
@@ -158,90 +86,42 @@ jobs:
             
             git clone https://github.com/medalizaidi/nifi.git $WORKSPACE
             cd $WORKSPACE
-            git checkout main
-            
-            echo "✅ Infrastructure repository ready"
-      
-      - run:
-          name: Clone flows repository
-          command: |
-            FLOWS_DIR="/tmp/nifi-flows"
-            rm -rf $FLOWS_DIR
-            mkdir -p $FLOWS_DIR
-            
-            git clone https://github.com/medalizaidi/nifi-flows.git $FLOWS_DIR
-            cd $FLOWS_DIR
-            git checkout main
-            
-            echo "✅ Flows repository ready"
+            git checkout production
       
       - run:
           name: Install Python dependencies
           command: |
             pip3 install nipyapi requests urllib3 --break-system-packages 2>/dev/null || \
-            pip3 install nipyapi requests urllib3 || \
-            pip install nipyapi requests urllib3
+            pip3 install nipyapi requests urllib3
       
       - run:
           name: Deploy to production
           command: |
             cd /tmp/nifi-deploy
             
-            # Use environment variables from CircleCI project settings
             export NIFI_API="${NIFI_PROD_URL}"
             export REGISTRY_API="${NIFI_REGISTRY_URL}"
             export BUCKET_NAME="${BUCKET_NAME:-test}"
             export FLOW_NAME="${FLOW_NAME:-test}"
-            export NIFI_USERNAME="${NIFI_USERNAME}"
-            export NIFI_PASSWORD="${NIFI_PASSWORD}"
             
-            echo "=========================================="
-            echo "🔥 Deploying to PRODUCTION"
-            echo "=========================================="
-            echo "NIFI_API: $NIFI_API"
-            echo "REGISTRY_API: $REGISTRY_API"
-            echo "BUCKET_NAME: $BUCKET_NAME"
-            echo "FLOW_NAME: $FLOW_NAME"
-            echo "NIFI_USERNAME: ${NIFI_USERNAME:+***set***}"
-            echo ""
-            
-            if [ -f "deploy_flow.py" ]; then
-              echo "Running deployment script..."
-              python3 deploy_flow.py prod || python deploy_flow.py prod
-              echo ""
-              echo "✅ Production deployment completed successfully"
-            else
-              echo "❌ deploy_flow.py not found!"
-              exit 1
-            fi
+            python3 deploy_flow.py prod || python deploy_flow.py prod
+            echo "✅ Production deployment completed"
 
 workflows:
   version: 2
   
-  # Main deployment workflow - triggered by push or external API call
-  deploy-flows:
+  # Deploy to staging on main branch
+  deploy-staging:
     jobs:
       - deploy-staging:
           filters:
             branches:
-              only: 
-                - main
-      
-      - hold-production:
-          type: approval
-          requires:
-            - deploy-staging
-          filters:
-            branches:
-              only: 
-                - main
-                - /release\/.*/
-      
+              only: main
+  
+  # Deploy to production on production branch
+  deploy-production:
+    jobs:
       - deploy-production:
-          requires:
-            - hold-production
           filters:
             branches:
-              only:
-                - main
-                - /release\/.*/
+              only: production
