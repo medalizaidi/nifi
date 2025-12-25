@@ -1,0 +1,103 @@
+name: Create Production PR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  create-pr:
+    name: Create PR to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check if PR already exists
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_EXISTS=$(gh pr list --base production --head main --json number --jq length)
+          echo "pr_exists=$PR_EXISTS" >> $GITHUB_OUTPUT
+          
+          if [ "$PR_EXISTS" -gt 0 ]; then
+            echo "✅ PR already exists"
+            PR_NUMBER=$(gh pr list --base production --head main --json number --jq '.[0].number')
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          else
+            echo "📝 No PR exists, will create one"
+          fi
+      
+      - name: Get latest commit info
+        id: commit_info
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          
+          {
+            echo "message<<EOF"
+            echo "$COMMIT_MSG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          echo "author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+      
+      - name: Create Pull Request
+        if: steps.check_pr.outputs.pr_exists == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_BODY="## 🚀 Deploy to Production
+
+          **Latest Changes:**
+          ${{ steps.commit_info.outputs.message }}
+
+          **Author:** ${{ steps.commit_info.outputs.author }}
+
+          ---
+
+          ### Deployment Plan
+          - ✅ Deployed to **Staging** successfully
+          - ⏳ Waiting for approval to deploy to **Production**
+
+          ### Review Checklist
+          - [ ] Changes verified in staging environment
+          - [ ] Tests passing
+          - [ ] Ready for production deployment
+
+          ---
+
+          **After merging this PR:**
+          CircleCI will automatically deploy to the production NiFi instance.
+          "
+          
+          gh pr create \
+            --title "🚀 Deploy to Production: ${{ steps.commit_info.outputs.message }}" \
+            --body "$PR_BODY" \
+            --base production \
+            --head main \
+            --label "deployment" \
+            --label "production"
+          
+          echo "✅ Pull Request created"
+      
+      - name: Update existing PR
+        if: steps.check_pr.outputs.pr_exists != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.check_pr.outputs.pr_number }}
+          
+          gh pr comment $PR_NUMBER --body "🔄 **New changes pushed to staging**
+
+          Latest commit: ${{ steps.commit_info.outputs.message }}
+          Author: ${{ steps.commit_info.outputs.author }}
+          
+          Staging deployment completed. Ready for production review."
+          
+          echo "✅ PR #$PR_NUMBER updated with new commit info"
