@@ -142,4 +142,4 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
             -d "$(echo "{\"body\": $(echo "$COMMENT" | jq -Rs .)}")"
           
-          echo "✅ PR #$PR_NUMBER updated"
+          echo "✅  PR #$PR_NUMBER updated"
