@@ -16,15 +16,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
       
       - name: Check if PR already exists
         id: check_pr
         run: |
           echo "Checking for existing PRs..."
-          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=production&head=${{ github.repository_owner }}:main")
-          
-          echo "API Response: $RESPONSE"
           
           PR_COUNT=$(echo "$RESPONSE" | grep -o '"number":' | wc -l)
           echo "pr_exists=$PR_COUNT" >> $GITHUB_OUTPUT
@@ -93,9 +92,9 @@ jobs:
           echo "Payload:"
           cat /tmp/pr_payload.json
           
-          # Create PR
+          # Create PR with PAT token
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d @/tmp/pr_payload.json)
@@ -138,7 +137,7 @@ jobs:
           Staging deployment completed. Ready for production review."
           
           curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
             -d "$(echo "{\"body\": $(echo "$COMMENT" | jq -Rs .)}")"
